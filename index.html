@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة عمليات التصنيع | Manufacturing Operations Manager</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (XLSX) for Excel Import & Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Cairo & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', 'Inter', sans-serif; }
+        [dir="ltr"] body { font-family: 'Inter', 'Cairo', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-lg">
+                    <i class="fa-solid fa-industry text-xl"></i>
+                </div>
+                <div>
+                    <h1 id="app-title" class="font-bold text-lg leading-tight">نظام إدارة التصنيع</h1>
+                    <p id="app-subtitle" class="text-xs text-slate-400">تتبع الإنتاج، الخامات، والأوزان</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <!-- Connection Status Badge -->
+                <span id="fb-status" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span data-i18n="connected">متصل بـ Firebase</span>
+                </span>
+
+                <!-- User Info & Logout (Hidden until logged in) -->
+                <div id="user-nav" class="hidden flex items-center gap-2">
+                    <span id="current-user-badge" class="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-blue-300 font-semibold"></span>
+                    <button onclick="logout()" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span data-i18n="logout">خروج</span>
+                    </button>
+                </div>
+
+                <!-- Language Toggle -->
+                <button onclick="toggleLanguage()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-700 transition">
+                    <i class="fa-solid fa-globe me-1"></i>
+                    <span id="lang-btn-text">English</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- ==================== LOGIN SCREEN ==================== -->
+        <section id="login-section" class="max-w-md mx-auto mt-10">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-700 to-slate-900 p-6 text-white text-center">
+                    <div class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+                        <i class="fa-solid fa-shield-halved text-2xl text-blue-300"></i>
+                    </div>
+                    <h2 class="text-xl font-bold" data-i18n="loginTitle">تسجيل الدخول للنظام</h2>
+                    <p class="text-xs text-blue-200 mt-1" data-i18n="loginSub">أدخل بيانات الدخول للوصول إلى لوحة التصنيع</p>
+                </div>
+
+                <form id="login-form" class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1" data-i18n="emailOrUser">البريد الإلكتروني / اسم المستخدم</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 start-0 flex items-center ps-3 text-slate-400">
+                                <i class="fa-solid fa-user"></i>
+                            </span>
+                            <input type="text" id="login-email" required placeholder="QQQQQ"
+                                class="w-full ps-10 pe-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1" data-i18n="password">كلمة المرور</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 start-0 flex items-center ps-3 text-slate-400">
+                                <i class="fa-solid fa-lock"></i>
+                            </span>
+                            <input type="password" id="login-password" required placeholder="•••••"
+                                class="w-full ps-10 pe-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                        </div>
+                    </div>
+
+                    <div id="login-error" class="hidden text-xs text-rose-600 bg-rose-50 p-3 rounded-lg border border-rose-200 font-semibold"></div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                        <span data-i18n="loginBtn">دخول</span>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ==================== MAIN DASHBOARD ==================== -->
+        <section id="dashboard-section" class="hidden space-y-8">
+
+            <!-- ADMIN PANEL (Visible ONLY to Admin QQQQQ) -->
+            <div id="admin-panel" class="hidden bg-amber-50/70 border border-amber-200 rounded-2xl p-6 shadow-sm">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-amber-200 pb-4 mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-amber-500 text-white p-2.5 rounded-xl">
+                            <i class="fa-solid fa-user-shield text-lg"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-bold text-lg text-amber-950" data-i18n="adminPanelTitle">لوحة تحكم المدير (Admin)</h2>
+                            <p class="text-xs text-amber-700" data-i18n="adminPanelSub">إضافة وإدارة حسابات المستخدمين المصرح لهم بدخول النظام</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Add User Form -->
+                    <form id="add-user-form" class="bg-white p-4 rounded-xl border border-amber-200 space-y-3">
+                        <h3 class="font-bold text-sm text-slate-800 border-b pb-2" data-i18n="addNewUser">إضافة مستخدم جديد</h3>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="newUserEmail">البريد الإلكتروني / اسم المستخدم</label>
+                            <input type="text" id="new-user-email" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="newUserPass">كلمة المرور</label>
+                            <input type="text" id="new-user-pass" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="userRole">الصلاحية</label>
+                            <select id="new-user-role" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none">
+                                <option value="operator" data-i18n="roleOperator">مشغل / مهندس إنتاج</option>
+                                <option value="admin" data-i18n="roleAdmin">مدير (Admin)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg text-sm transition">
+                            <i class="fa-solid fa-user-plus me-1"></i>
+                            <span data-i18n="createUserBtn">حفظ وإضافة المستخدم</span>
+                        </button>
+                    </form>
+
+                    <!-- Users List -->
+                    <div class="lg:col-span-2 bg-white p-4 rounded-xl border border-amber-200 overflow-x-auto">
+                        <h3 class="font-bold text-sm text-slate-800 border-b pb-2 mb-3" data-i18n="registeredUsers">المستخدمون المسجلون في النظام</h3>
+                        <table class="w-full text-sm text-start">
+                            <thead class="bg-slate-50 text-slate-600 text-xs uppercase">
+                                <tr>
+                                    <th class="py-2 px-3 text-start" data-i18n="emailOrUser">المستخدم</th>
+                                    <th class="py-2 px-3 text-start" data-i18n="password">كلمة المرور</th>
+                                    <th class="py-2 px-3 text-start" data-i18n="userRole">الصلاحية</th>
+                                    <th class="py-2 px-3 text-center" data-i18n="actions">إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body" class="divide-y divide-slate-100">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MANUFACTURING ENTRY FORM -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-100 text-blue-700 p-2.5 rounded-xl">
+                            <i class="fa-solid fa-gears text-lg"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-bold text-lg text-slate-800" data-i18n="formTitle">إدخال بيانات عملية التصنيع</h2>
+                            <p class="text-xs text-slate-500" data-i18n="formSub">أدخل تفاصيل المنتج والأبعاد لحساب الوزن تلقائياً والحفظ في قاعدة البيانات</p>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="manufacturing-form" class="space-y-6">
+                    <!-- Row 1: Product Info & Start Date -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1" data-i18n="productName">اسم المنتج المصنع *</label>
+                            <input type="text" id="product-name" required placeholder="مثال: خزان ستانلس 500 لتر"
+                                class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1" data-i18n="rawMaterial">المواد الخام *</label>
+                            <input type="text" id="raw-material" required placeholder="مثال: صاج حديد مجلفن / ألومنيوم"
+                                class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1" data-i18n="startDate">بداية العمل في التصنيع *</label>
+                            <input type="datetime-local" id="start-date" required
+                                class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Dimensions & Automatic Weight Calculator -->
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-bold text-blue-800 flex items-center gap-1.5">
+                                <i class="fa-solid fa-ruler-combined"></i>
+                                <span data-i18n="dimensionsTitle">المقاسات والأبعاد (لحساب وزن المواد الخام تلقائياً)</span>
+                            </span>
+                            <span class="text-[11px] text-slate-500" data-i18n="formulaHint">الوزن (كجم) = (الطول × العرض × السُمك × الكثافة) ÷ 1,000,000</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="lengthMm">الطول (مم)</label>
+                                <input type="number" step="any" min="0" id="dim-length" required oninput="calculateWeight()" placeholder="1000"
+                                    class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="widthMm">العرض (مم)</label>
+                                <input type="number" step="any" min="0" id="dim-width" required oninput="calculateWeight()" placeholder="500"
+                                    class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="thicknessMm">السُمك / الارتفاع (مم)</label>
+                                <input type="number" step="any" min="0" id="dim-thickness" required oninput="calculateWeight()" placeholder="2"
+                                    class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="density">كثافة الخامة (جم/سم³)</label>
+                                <select id="material-density" onchange="calculateWeight()"
+                                    class="w-full px-2.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="7.85" data-i18n="matSteel">حديد / صلب (7.85)</option>
+                                    <option value="7.93" data-i18n="matStainless">ستانلس ستيل (7.93)</option>
+                                    <option value="2.70" data-i18n="matAluminum">ألومنيوم (2.70)</option>
+                                    <option value="8.96" data-i18n="matCopper">نحاس (8.96)</option>
+                                    <option value="1.20" data-i18n="matPlastic">بلاستيك / أكريليك (1.20)</option>
+                                    <option value="0.70" data-i18n="matWood">خشب (0.70)</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2 sm:col-span-1">
+                                <label class="block text-xs font-bold text-emerald-700 mb-1" data-i18n="calcWeight">الوزن المحسوب (كجم)</label>
+                                <div class="relative">
+                                    <input type="text" id="calculated-weight" readonly value="0.00"
+                                        class="w-full px-3 py-2 text-sm font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-lg outline-none">
+                                    <span class="absolute inset-y-0 end-2.5 flex items-center text-xs font-bold text-emerald-600">KG</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Equipment & Labor -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1" data-i18n="equipment">المعدات المستخدمة في التصنيع *</label>
+                            <input type="text" id="equipment" required placeholder="مثال: ماكينة تقطيع ليزر، مكبس ثني، لحام أرجون"
+                                class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1" data-i18n="labor">العمالة الداخلة في التصنيع *</label>
+                            <input type="text" id="labor" required placeholder="مثال: 2 فني لحام + 1 مشغل ماكينة + مهندس إشراف"
+                                class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Submit Button: Save to Firebase -->
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <button type="reset" onclick="setTimeout(calculateWeight, 10)" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 text-sm font-semibold transition">
+                            <span data-i18n="clearForm">مسح الحقول</span>
+                        </button>
+                        <button type="submit" id="save-fb-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-2">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span data-i18n="saveFirebaseBtn">حفظ البيانات على Firebase</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- RECORDS TABLE & EXCEL IMPORT / EXPORT -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-5">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-table-list text-blue-600"></i>
+                            <span data-i18n="recordsTitle">سجل عمليات التصنيع والمخرجات</span>
+                            <span id="records-count" class="text-xs bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-bold">0</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5" data-i18n="recordsSub">جميع البيانات محفوظة لحظياً على سحابة Firebase ويمكن تصديرها أو استيرادها عبر Excel</p>
+                    </div>
+
+                    <!-- Action Buttons: Import & Export Excel -->
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <!-- Hidden File Input for Import -->
+                        <input type="file" id="import-excel-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelImport(event)">
+                        
+                        <button type="button" onclick="document.getElementById('import-excel-input').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2">
+                            <i class="fa-solid fa-file-import"></i>
+                            <span data-i18n="importBtn">استيراد بيانات (Excel)</span>
+                        </button>
+
+                        <button type="button" onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel"></i>
+                            <span data-i18n="exportBtn">تنزيل شيت Excel</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200">
+                    <table class="w-full text-sm text-start border-collapse">
+                        <thead class="bg-slate-800 text-white text-xs">
+                            <tr>
+                                <th class="py-3 px-3 text-start">#</th>
+                                <th class="py-3 px-3 text-start" data-i18n="thProduct">اسم المنتج</th>
+                                <th class="py-3 px-3 text-start" data-i18n="thDimensions">المقاس (مم)</th>
+                                <th class="py-3 px-3 text-start" data-i18n="thMaterial">المواد الخام</th>
+                                <th class="py-3 px-3 text-start bg-emerald-900/60" data-i18n="thWeight">وزن الخامات (كجم)</th>
+                                <th class="py-3 px-3 text-start" data-i18n="thEquipment">المعدات</th>
+                                <th class="py-3 px-3 text-start" data-i18n="thLabor">العمالة</th>
+                                <th class="py-3 px-3 text-start" data-i18n="thStart">بداية التصنيع</th>
+                                <th class="py-3 px-3 text-center" data-i18n="actions">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="records-table-body" class="divide-y divide-slate-200 bg-white">
+                            <tr>
+                                <td colspan="9" class="py-8 text-center text-slate-400" data-i18n="loadingData">جاري تحميل البيانات من Firebase...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 end-5 z-50 hidden transform transition-all duration-300 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 text-sm font-semibold">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toast-msg"></span>
+    </div>
+
+    <!-- Firebase SDK v10 Modular -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+        import { 
+            getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot, query, orderBy, setDoc, getDoc 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBoLORm3IQq1utUOf_WF0Sv0RpmvSKsFlA",
+            authDomain: "workshop-tasks-inventory.firebaseapp.com",
+            projectId: "workshop-tasks-inventory",
+            storageBucket: "workshop-tasks-inventory.firebasestorage.app",
+            messagingSenderId: "475662492010",
+            appId: "1:475662492010:web:35268b9512e85c85438513",
+            measurementId: "G-FKTCESDYFS"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+
+        // Global State
+        let currentLang = 'ar';
+        let currentUser = null;
+        let manufacturingRecords = [];
+        let systemUsers = [];
+
+        // Default Admin Credentials
+        const DEFAULT_ADMIN = {
+            username: "QQQQQ",
+            password: "25463",
+            role: "admin"
+        };
+
+        // Bilingual Dictionary
+        const i18n = {
+            ar: {
+                appTitle: "نظام إدارة التصنيع",
+                appSub: "تتبع الإنتاج، الخامات، والأوزان",
+                connected: "متصل بـ Firebase",
+                logout: "خروج",
+                loginTitle: "تسجيل الدخول للنظام",
+                loginSub: "أدخل بيانات الدخول للوصول إلى لوحة التصنيع",
+                emailOrUser: "البريد الإلكتروني / اسم المستخدم",
+                password: "كلمة المرور",
+                loginBtn: "دخول",
+                loginErr: "بيانات الدخول غير صحيحة! تأكد من البريد/اسم المستخدم وكلمة المرور.",
+                adminPanelTitle: "لوحة تحكم المدير (Admin)",
+                adminPanelSub: "إضافة وإدارة حسابات المستخدمين المصرح لهم بدخول النظام",
+                addNewUser: "إضافة مستخدم جديد",
+                newUserEmail: "البريد الإلكتروني / اسم المستخدم",
+                newUserPass: "كلمة المرور",
+                userRole: "الصلاحية",
+                roleOperator: "مشغل / مهندس إنتاج",
+                roleAdmin: "مدير (Admin)",
+                createUserBtn: "حفظ وإضافة المستخدم",
+                registeredUsers: "المستخدمون المسجلون في النظام",
+                actions: "إجراء",
+                formTitle: "إدخال بيانات عملية التصنيع",
+                formSub: "أدخل تفاصيل المنتج والأبعاد لحساب الوزن تلقائياً والحفظ في قاعدة البيانات",
+                productName: "اسم المنتج المصنع *",
+                rawMaterial: "المواد الخام *",
+                startDate: "بداية العمل في التصنيع *",
+                dimensionsTitle: "المقاسات والأبعاد (لحساب وزن المواد الخام تلقائياً)",
+                formulaHint: "الوزن (كجم) = (الطول × العرض × السُمك × الكثافة) ÷ 1,000,000",
+                lengthMm: "الطول (مم)",
+                widthMm: "العرض (مم)",
+                thicknessMm: "السُمك / الارتفاع (مم)",
+                density: "كثافة الخامة (جم/سم³)",
+                matSteel: "حديد / صلب (7.85)",
+                matStainless: "ستانلس ستيل (7.93)",
+                matAluminum: "ألومنيوم (2.70)",
+                matCopper: "نحاس (8.96)",
+                matPlastic: "بلاستيك / أكريليك (1.20)",
+                matWood: "خشب (0.70)",
+                calcWeight: "الوزن المحسوب (كجم)",
+                equipment: "المعدات المستخدمة في التصنيع *",
+                labor: "العمالة الداخلة في التصنيع *",
+                clearForm: "مسح الحقول",
+                saveFirebaseBtn: "حفظ البيانات على Firebase",
+                recordsTitle: "سجل عمليات التصنيع والمخرجات",
+                recordsSub: "جميع البيانات محفوظة لحظياً على سحابة Firebase ويمكن تصديرها أو استيرادها عبر Excel",
+                importBtn: "استيراد بيانات (Excel)",
+                exportBtn: "تنزيل شيت Excel",
+                thProduct: "اسم المنتج",
+                thDimensions: "المقاس (مم)",
+                thMaterial: "المواد الخام",
+                thWeight: "وزن الخامات (كجم)",
+                thEquipment: "المعدات",
+                thLabor: "العمالة",
+                thStart: "بداية التصنيع",
+                loadingData: "جاري تحميل البيانات من Firebase...",
+                noRecords: "لا توجد عمليات تصنيع مسجلة حالياً.",
+                savedSuccess: "تم حفظ عملية التصنيع على Firebase بنجاح!",
+                userAdded: "تم إضافة المستخدم الجديد بنجاح!",
+                deletedSuccess: "تم الحذف بنجاح",
+                importSuccess: "تم استيراد البيانات وحفظها في Firebase بنجاح!",
+                exportSuccess: "تم تصدير ملف Excel بنجاح!"
+            },
+            en: {
+                appTitle: "Manufacturing Operations System",
+                appSub: "Track Production, Raw Materials & Weights",
+                connected: "Firebase Connected",
+                logout: "Logout",
+                loginTitle: "System Login",
+                loginSub: "Enter your credentials to access the manufacturing dashboard",
+                emailOrUser: "Email / Username",
+                password: "Password",
+                loginBtn: "Sign In",
+                loginErr: "Invalid credentials! Please check your email/username and password.",
+                adminPanelTitle: "Admin Control Panel",
+                adminPanelSub: "Add and manage authorized system users",
+                addNewUser: "Add New User",
+                newUserEmail: "Email / Username",
+                newUserPass: "Password",
+                userRole: "Role",
+                roleOperator: "Operator / Production Engineer",
+                roleAdmin: "Administrator (Admin)",
+                createUserBtn: "Save & Add User",
+                registeredUsers: "Registered System Users",
+                actions: "Action",
+                formTitle: "Manufacturing Process Entry",
+                formSub: "Enter product specs and dimensions to auto-calculate weight and save to cloud",
+                productName: "Manufactured Product Name *",
+                rawMaterial: "Raw Materials *",
+                startDate: "Manufacturing Start Time *",
+                dimensionsTitle: "Dimensions (For Automatic Raw Material Weight Calculation)",
+                formulaHint: "Weight (kg) = (Length × Width × Thickness × Density) ÷ 1,000,000",
+                lengthMm: "Length (mm)",
+                widthMm: "Width (mm)",
+                thicknessMm: "Thickness / Height (mm)",
+                density: "Material Density (g/cm³)",
+                matSteel: "Steel / Iron (7.85)",
+                matStainless: "Stainless Steel (7.93)",
+                matAluminum: "Aluminum (2.70)",
+                matCopper: "Copper (8.96)",
+                matPlastic: "Plastic / Acrylic (1.20)",
+                matWood: "Wood (0.70)",
+                calcWeight: "Calculated Weight (kg)",
+                equipment: "Manufacturing Equipment *",
+                labor: "Assigned Labor *",
+                clearForm: "Clear Form",
+                saveFirebaseBtn: "Save to Firebase",
+                recordsTitle: "Manufacturing Logs & Outputs",
+                recordsSub: "Real-time Firebase sync with Excel import and export support",
+                importBtn: "Import Data (Excel)",
+                exportBtn: "Download Excel Sheet",
+                thProduct: "Product Name",
+                thDimensions: "Dimensions (mm)",
+                thMaterial: "Raw Materials",
+                thWeight: "Material Weight (kg)",
+                thEquipment: "Equipment",
+                thLabor: "Labor",
+                thStart: "Start Date",
+                loadingData: "Loading data from Firebase...",
+                noRecords: "No manufacturing records found yet.",
+                savedSuccess: "Manufacturing record saved to Firebase!",
+                userAdded: "New user added successfully!",
+                deletedSuccess: "Deleted successfully",
+                importSuccess: "Data imported and saved to Firebase!",
+                exportSuccess: "Excel sheet downloaded successfully!"
+            }
+        };
+
+        // Toast Helper
+        function showToast(msgKey, isError = false) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-msg');
+            msg.textContent = i18n[currentLang][msgKey] || msgKey;
+            icon.className = isError 
+                ? "fa-solid fa-circle-exclamation text-rose-400 text-lg" 
+                : "fa-solid fa-circle-check text-emerald-400 text-lg";
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3500);
+        }
+
+        // Language Switcher
+        window.toggleLanguage = () => {
+            currentLang = currentLang === 'ar' ? 'en' : 'ar';
+            document.documentElement.lang = currentLang;
+            document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            document.getElementById('lang-btn-text').textContent = currentLang === 'ar' ? 'English' : 'عربي';
+            document.getElementById('app-title').textContent = i18n[currentLang].appTitle;
+            document.getElementById('app-subtitle').textContent = i18n[currentLang].appSub;
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[currentLang][key]) {
+                    el.textContent = i18n[currentLang][key];
+                }
+            });
+            renderRecordsTable();
+            renderUsersTable();
+        };
+
+        // Automatic Weight Calculation from Dimensions
+        window.calculateWeight = () => {
+            const l = parseFloat(document.getElementById('dim-length').value) || 0;
+            const w = parseFloat(document.getElementById('dim-width').value) || 0;
+            const t = parseFloat(document.getElementById('dim-thickness').value) || 0;
+            const density = parseFloat(document.getElementById('material-density').value) || 7.85;
+
+            // Volume in mm³ -> cm³ (divide by 1000) -> grams (* density) -> kg (divide by 1000)
+            const weightKg = (l * w * t * density) / 1000000;
+            document.getElementById('calculated-weight').value = weightKg.toFixed(3);
+            return parseFloat(weightKg.toFixed(3));
+        };
+
+        // Initialize Default Admin in Firestore if not exists
+        async function ensureDefaultAdmin() {
+            try {
+                const adminRef = doc(db, "app_users", "QQQQQ");
+                const adminSnap = await getDoc(adminRef);
+                if (!adminSnap.exists()) {
+                    await setDoc(adminRef, DEFAULT_ADMIN);
+                }
+            } catch (e) {
+                console.warn("Firestore initial admin check:", e);
+            }
+        }
+
+        // Listen to System Users
+        function subscribeToUsers() {
+            onSnapshot(collection(db, "app_users"), (snapshot) => {
+                systemUsers = [DEFAULT_ADMIN];
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.username !== "QQQQQ") {
+                        systemUsers.push({ id: docSnap.id, ...data });
+                    }
+                });
+                renderUsersTable();
+            });
+        }
+
+        // Render Admin Users Table
+        function renderUsersTable() {
+            const tbody = document.getElementById('users-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = systemUsers.map(u => `
+                <tr class="hover:bg-slate-50">
+                    <td class="py-2 px-3 font-bold text-slate-800">${u.username}</td>
+                    <td class="py-2 px-3 font-mono text-xs text-slate-600">${u.password}</td>
+                    <td class="py-2 px-3">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${u.role === 'admin' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}">
+                            ${u.role === 'admin' ? (currentLang === 'ar' ? 'مدير (Admin)' : 'Admin') : (currentLang === 'ar' ? 'مستخدم' : 'User')}
+                        </span>
+                    </td>
+                    <td class="py-2 px-3 text-center">
+                        ${u.username === 'QQQQQ' 
+                            ? '<span class="text-xs text-slate-400"><i class="fa-solid fa-lock"></i></span>' 
+                            : `<button onclick="deleteUser('${u.id}')" class="text-rose-600 hover:text-rose-800 text-xs font-bold"><i class="fa-solid fa-trash"></i></button>`
+                        }
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Handle Login
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const emailInput = document.getElementById('login-email').value.trim();
+            const passInput = document.getElementById('login-password').value.trim();
+            const errBox = document.getElementById('login-error');
+
+            // Check Default Admin first
+            let matchedUser = null;
+            if (emailInput === DEFAULT_ADMIN.username && passInput === DEFAULT_ADMIN.password) {
+                matchedUser = DEFAULT_ADMIN;
+            } else {
+                // Check Firestore app_users
+                const snap = await getDocs(collection(db, "app_users"));
+                snap.forEach(d => {
+                    const u = d.data();
+                    if (u.username === emailInput && u.password === passInput) {
+                        matchedUser = u;
+                    }
+                });
+            }
+
+            if (matchedUser) {
+                errBox.classList.add('hidden');
+                currentUser = matchedUser;
+                sessionStorage.setItem('mfg_user', JSON.stringify(matchedUser));
+                enterDashboard();
+            } else {
+                errBox.textContent = i18n[currentLang].loginErr;
+                errBox.classList.remove('hidden');
+            }
+        });
+
+        function enterDashboard() {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('dashboard-section').classList.remove('hidden');
+            document.getElementById('user-nav').classList.remove('hidden');
+            document.getElementById('current-user-badge').textContent = `${currentUser.username} (${currentUser.role.toUpperCase()})`;
+
+            // Show Admin Panel ONLY if role is admin
+            if (currentUser.role === 'admin') {
+                document.getElementById('admin-panel').classList.remove('hidden');
+            } else {
+                document.getElementById('admin-panel').classList.add('hidden');
+            }
+
+            // Set default datetime-local to now
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('start-date').value = now.toISOString().slice(0, 16);
+
+            subscribeToRecords();
+        }
+
+        window.logout = () => {
+            currentUser = null;
+            sessionStorage.removeItem('mfg_user');
+            document.getElementById('dashboard-section').classList.add('hidden');
+            document.getElementById('user-nav').classList.add('hidden');
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('login-form').reset();
+        };
+
+        // Admin: Add New User
+        document.getElementById('add-user-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser || currentUser.role !== 'admin') return;
+
+            const username = document.getElementById('new-user-email').value.trim();
+            const password = document.getElementById('new-user-pass').value.trim();
+            const role = document.getElementById('new-user-role').value;
+
+            try {
+                await setDoc(doc(db, "app_users", username.replace(/[.#$/[\]]/g, '_')), {
+                    username,
+                    password,
+                    role,
+                    createdBy: currentUser.username,
+                    createdAt: new Date().toISOString()
+                });
+                document.getElementById('add-user-form').reset();
+                showToast('userAdded');
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        });
+
+        window.deleteUser = async (docId) => {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            await deleteDoc(doc(db, "app_users", docId));
+            showToast('deletedSuccess');
+        };
+
+        // Save Manufacturing Data to Firebase
+        document.getElementById('manufacturing-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('save-fb-btn');
+            btn.disabled = true;
+
+            const length = parseFloat(document.getElementById('dim-length').value) || 0;
+            const width = parseFloat(document.getElementById('dim-width').value) || 0;
+            const thickness = parseFloat(document.getElementById('dim-thickness').value) || 0;
+            const density = parseFloat(document.getElementById('material-density').value) || 7.85;
+            const weightKg = calculateWeight();
+
+            const record = {
+                productName: document.getElementById('product-name').value.trim(),
+                rawMaterial: document.getElementById('raw-material').value.trim(),
+                length,
+                width,
+                thickness,
+                density,
+                dimensionsText: `${length} × ${width} × ${thickness}`,
+                rawMaterialWeightKg: weightKg,
+                equipment: document.getElementById('equipment').value.trim(),
+                labor: document.getElementById('labor').value.trim(),
+                startDate: document.getElementById('start-date').value,
+                createdBy: currentUser ? currentUser.username : 'system',
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                await addDoc(collection(db, "manufacturing_operations"), record);
+                document.getElementById('manufacturing-form').reset();
+                calculateWeight();
+                showToast('savedSuccess');
+            } catch (err) {
+                console.error(err);
+                showToast(err.message, true);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        // Subscribe to Manufacturing Records in Real-time
+        function subscribeToRecords() {
+            const q = query(collection(db, "manufacturing_operations"), orderBy("createdAt", "desc"));
+            onSnapshot(q, (snapshot) => {
+                manufacturingRecords = [];
+                snapshot.forEach(docSnap => {
+                    manufacturingRecords.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                document.getElementById('records-count').textContent = manufacturingRecords.length;
+                renderRecordsTable();
+            }, (error) => {
+                console.error("Snapshot error:", error);
+            });
+        }
+
+        // Render Records Table
+        function renderRecordsTable() {
+            const tbody = document.getElementById('records-table-body');
+            if (manufacturingRecords.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-slate-400">${i18n[currentLang].noRecords}</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = manufacturingRecords.map((rec, idx) => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-3 px-3 font-semibold text-slate-500">${idx + 1}</td>
+                    <td class="py-3 px-3 font-bold text-slate-800">${rec.productName || '-'}</td>
+                    <td class="py-3 px-3 text-slate-600 font-mono text-xs" dir="ltr">${rec.dimensionsText || `${rec.length || 0}×${rec.width || 0}×${rec.thickness || 0}`}</td>
+                    <td class="py-3 px-3 text-slate-700">${rec.rawMaterial || '-'}</td>
+                    <td class="py-3 px-3 font-extrabold text-emerald-700 bg-emerald-50/60">${Number(rec.rawMaterialWeightKg || 0).toFixed(3)} kg</td>
+                    <td class="py-3 px-3 text-slate-600">${rec.equipment || '-'}</td>
+                    <td class="py-3 px-3 text-slate-600">${rec.labor || '-'}</td>
+                    <td class="py-3 px-3 text-xs text-slate-600" dir="ltr">${(rec.startDate || '').replace('T', ' ')}</td>
+                    <td class="py-3 px-3 text-center">
+                        <button onclick="deleteRecord('${rec.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 transition" title="Delete">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.deleteRecord = async (id) => {
+            await deleteDoc(doc(db, "manufacturing_operations", id));
+            showToast('deletedSuccess');
+        };
+
+        // Export to Excel (.xlsx)
+        window.exportToExcel = () => {
+            if (manufacturingRecords.length === 0) {
+                showToast(i18n[currentLang].noRecords, true);
+                return;
+            }
+
+            const rows = manufacturingRecords.map((r, index) => ({
+                "#": index + 1,
+                "اسم المنتج المصنع / Product Name": r.productName,
+                "الطول (مم) / Length": r.length || 0,
+                "العرض (مم) / Width": r.width || 0,
+                "السُمك (مم) / Thickness": r.thickness || 0,
+                "المقاس الكامل / Dimensions": r.dimensionsText,
+                "المواد الخام / Raw Material": r.rawMaterial,
+                "وزن المواد الخام المحسوب (كجم) / Calculated Weight (kg)": Number(r.rawMaterialWeightKg || 0),
+                "المعدات / Equipment": r.equipment,
+                "العمالة / Labor": r.labor,
+                "بداية العمل في التصنيع / Start Date": (r.startDate || '').replace('T', ' ')
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Manufacturing_Data");
+
+            // Auto-fit column widths
+            worksheet['!cols'] = [
+                { wch: 5 }, { wch: 25 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+                { wch: 20 }, { wch: 22 }, { wch: 28 }, { wch: 25 }, { wch: 25 }, { wch: 20 }
+            ];
+
+            XLSX.writeFile(workbook, `Manufacturing_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+            showToast('exportSuccess');
+        };
+
+        // Import from Excel (.xlsx / .xls / .csv)
+        window.handleExcelImport = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const jsonRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+                    for (const row of jsonRows) {
+                        const length = parseFloat(row["الطول (مم) / Length"] || row["الطول"] || row["Length"] || 0);
+                        const width = parseFloat(row["العرض (مم) / Width"] || row["العرض"] || row["Width"] || 0);
+                        const thickness = parseFloat(row["السُمك (مم) / Thickness"] || row["السمك"] || row["Thickness"] || 0);
+                        
+                        // Calculate weight if not explicitly provided in sheet
+                        let weight = parseFloat(row["وزن المواد الخام المحسوب (كجم) / Calculated Weight (kg)"] || row["وزن الخامات"] || row["Weight"] || 0);
+                        if (!weight && length && width && thickness) {
+                            weight = parseFloat(((length * width * thickness * 7.85) / 1000000).toFixed(3));
+                        }
+
+                        const newRecord = {
+                            productName: row["اسم المنتج المصنع / Product Name"] || row["اسم المنتج"] || row["Product Name"] || "منتج مستورد",
+                            rawMaterial: row["المواد الخام / Raw Material"] || row["المواد الخام"] || row["Raw Material"] || "-",
+                            length,
+                            width,
+                            thickness,
+                            dimensionsText: row["المقاس الكامل / Dimensions"] || `${length} × ${width} × ${thickness}`,
+                            rawMaterialWeightKg: weight,
+                            equipment: row["المعدات / Equipment"] || row["المعدات"] || row["Equipment"] || "-",
+                            labor: row["العمالة / Labor"] || row["العمالة"] || row["Labor"] || "-",
+                            startDate: row["بداية العمل في التصنيع / Start Date"] || row["بداية التصنيع"] || row["Start Date"] || new Date().toISOString().slice(0, 16),
+                            createdBy: currentUser ? currentUser.username : 'import',
+                            createdAt: new Date().toISOString()
+                        };
+
+                        await addDoc(collection(db, "manufacturing_operations"), newRecord);
+                    }
+                    showToast('importSuccess');
+                } catch (err) {
+                    console.error(err);
+                    showToast("Error importing file: " + err.message, true);
+                } finally {
+                    event.target.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        // Boot App
+        (async function init() {
+            await ensureDefaultAdmin();
+            subscribeToUsers();
+            const savedSession = sessionStorage.getItem('mfg_user');
+            if (savedSession) {
+                currentUser = JSON.parse(savedSession);
+                enterDashboard();
+            }
+        })();
+    </script>
+</body>
+</html>
